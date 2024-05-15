@@ -91,15 +91,15 @@ class ServerStack(TerraformStack):
             ]
             )
         
-        launch_template = LaunchTemplate()
+        #launch_template = LaunchTemplate()
         
-        lb = Lb()
+        #lb = Lb()
 
-        target_group=LbTargetGroup()
+        #target_group=LbTargetGroup()
 
-        lb_listener = LbListener()
+        #lb_listener = LbListener()
 
-        asg = AutoscalingGroup()
+        #asg = AutoscalingGroup()
 
 
 app = App()
