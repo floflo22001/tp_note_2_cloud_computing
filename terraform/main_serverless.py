@@ -8,7 +8,7 @@ from cdktf_cdktf_provider_aws.lambda_function import LambdaFunction
 from cdktf_cdktf_provider_aws.lambda_permission import LambdaPermission
 from cdktf_cdktf_provider_aws.data_aws_caller_identity import DataAwsCallerIdentity
 from cdktf_cdktf_provider_aws.s3_bucket import S3Bucket, S3BucketCorsRule
-from cdktf_cdktf_provider_aws.s3_bucket_notification import S3BucketNotification
+from cdktf_cdktf_provider_aws.s3_bucket_notification import S3BucketNotification, S3BucketNotificationLambdaFunction
 from cdktf_cdktf_provider_aws.dynamodb_table import DynamodbTable, DynamodbTableAttribute
 
 class ServerlessStack(TerraformStack):
@@ -23,7 +23,7 @@ class ServerlessStack(TerraformStack):
             force_destroy=True
         )
 
-        bucket = DynamodbTable(
+        dynamodb = DynamodbTable(
             self, "DynamodDB-table",
             name= "user_score",
             hash_key="username",
@@ -37,7 +37,20 @@ class ServerlessStack(TerraformStack):
             write_capacity=5
         )
 
-        #lambda_function = LambdaFunction()
+        code = TerraformAsset(
+            self, "code",
+            path="./lambda", 
+            type= AssetType.ARCHIVE
+        )
+
+        lambda_function = LambdaFunction(self,
+            "MyLambda",
+            function_name="lambda",
+            runtime="python3.8",
+            role=f"arn:aws:iam::{account_id}:role/LabRole",
+            filename=code.path, 
+            handler="lambda_function.lambda_handler"
+            )
 
         permission = LambdaPermission(
             self, "lambda_permission",
@@ -50,11 +63,19 @@ class ServerlessStack(TerraformStack):
             depends_on=[lambda_function, bucket]
         )
 
-        notification = S3BucketNotification()
+        notification = S3BucketNotification(    
+            self, "notification",
+            lambda_function=[S3BucketNotificationLambdaFunction(
+                lambda_function_arn=lambda_function.arn,
+                events=["s3:ObjectCreated:*"]
+            )],
+            bucket=bucket.id,
+            depends_on=[permission]
+        )
 
-        TerraformOutput()
+        TerraformOutput(self, "DynamoDbURL", value=dynamodb.id)
         
-        TerraformOutput()
+        TerraformOutput(self, "BucketS3URL", value=bucket.id)
 
 app = App()
 ServerlessStack(app, "cdktf_serverless")
