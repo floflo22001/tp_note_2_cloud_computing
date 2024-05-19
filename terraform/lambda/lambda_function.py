@@ -3,6 +3,8 @@ from urllib.parse import unquote_plus
 import boto3
 import os
 import logging
+
+
 print('Loading function')
 logger = logging.getLogger()
 logger.setLevel("INFO")
@@ -40,7 +42,22 @@ def lambda_handler(event, context):
     labels = [label["Name"] for label in label_data["Labels"]]
     logger.info(f"Labels detected : {labels}")
 
-    return {
-        'statusCode': 200,
-        'body': json.dumps('File processed successfully!')
-    }
+    table.update_item(
+        Key={"user": user, "id": task_id},
+        UpdateExpression="SET labels = :labels",
+        ExpressionAttributeValues={":labels": labels},
+    )
+
+    url = s3.generate_presigned_url(
+        Params={
+            "Bucket": bucket,
+            "Key": key,
+        },
+        ClientMethod="get_object",
+    )
+
+    table.update_item(
+        Key={"user": user, "id": task_id},
+        UpdateExpression="SET image = :url",
+        ExpressionAttributeValues={":url": url},
+    )

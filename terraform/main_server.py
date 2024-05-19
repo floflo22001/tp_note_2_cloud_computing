@@ -14,9 +14,9 @@ from cdktf_cdktf_provider_aws.data_aws_caller_identity import DataAwsCallerIdent
 
 import base64
 
-bucket=""
-dynamo_table=""
-your_repo=""
+bucket="my-cdtf-test-bucket20240515122653383800000001"
+dynamo_table="user_score"
+your_repo="https://github.com/floflo22001/tp_note_2_cloud_computing"
 
 
 user_data= base64.b64encode(f"""
@@ -91,15 +91,55 @@ class ServerStack(TerraformStack):
             ]
             )
         
-        #launch_template = LaunchTemplate()
+        launch_template = LaunchTemplate(
+            self, "launch_template",
+            name="MyLaunchTemplate",
+            image_id="ami-080e1f13689e07408",
+            instance_type="t2.micro",
+            key_name="vockey",
+            user_data=user_data,
+            vpc_security_group_ids=[security_group.id],
+            iam_instance_profile={"name": "LabInstanceProfile"}
+        )
+
+        lb = Lb(
+            self, "lb",
+            name="load-balancer",
+            load_balancer_type="application",
+            security_groups=[security_group.id],
+            subnets=subnets
+        )
+
+        target_group = LbTargetGroup(
+            self, "target_group",
+            name="my-target-group",
+            port=8080,
+            protocol="HTTP",
+            target_type="instance",
+            vpc_id=default_vpc.id
+        )
+
+        lb_listener = LbListener(
+            self, "lb_listener",
+            default_action=[LbListenerDefaultAction(type="forward", target_group_arn=target_group.arn)],
+            load_balancer_arn=lb.arn,
+            port=80,
+            protocol="HTTP"
+        )
+
+        asg = AutoscalingGroup(
+            self, "asg",
+            name="my-auto-scaling-group",
+            launch_template={"id":launch_template.id},
+            min_size=1,
+            max_size=4,
+            desired_capacity=1,
+            vpc_zone_identifier=subnets,
+            target_group_arns=[target_group.arn]
+        )
+
         
-        #lb = Lb()
-
-        #target_group=LbTargetGroup()
-
-        #lb_listener = LbListener()
-
-        #asg = AutoscalingGroup()
+        
 
 
 app = App()
